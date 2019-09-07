@@ -1,7 +1,7 @@
 /**
  * @file      glslUtility.cpp
  * @brief     A utility namespace for loading GLSL shaders.
- * @authors   Varun Sampath, Patrick Cozzi, Karl Li
+ * @authors   Varun Sampath, Patrick Cozzi, Karl L
  * @date      2012
  * @copyright University of Pennsylvania
  */

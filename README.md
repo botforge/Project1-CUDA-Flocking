@@ -26,7 +26,9 @@ On average, more boids decreased the performance.
 2. *Scattered & Coherent*: While better than the Naive algorithm, both of these algorithms would suffer if several boids were clustered together. High boid density in certain cells would increase the runtime of the for loop iterating over all boids. 
 
 **For each implementation, how does changing the block count and block size affect performance? Why do you think this is?**
+
 Negligible, and uncorellated. However, the coherent grid consistently performed twice as well as the scattered grid. 
 
 **For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?**
-I expected performance improvements, but not to this level. I was surpised by the fact that merely not indexing into another array could provide (on occasion) almost double the runtime. 
+
+I expected performance improvements, but not to this level. I was surpised by the fact that merely not indexing into another array could provide (on occasion) almost double the runtime. However, I later learnt that memory access adds a large overhead to 

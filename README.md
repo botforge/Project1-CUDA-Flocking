@@ -29,3 +29,4 @@ On average, more boids decreased the performance.
 Negligible, and uncorellated. However, the coherent grid consistently performed twice as well as the scattered grid. 
 
 **For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?**
+I expected performance improvements, but not to this level. I was surpised by the fact that merely not indexing into another array could provide (on occasion) almost double the runtime. 

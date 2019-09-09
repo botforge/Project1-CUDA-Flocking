@@ -52,7 +52,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 #define maxSpeed 1.0f
 
 /*! Size of the starting area in simulation space. */
-#define scene_scale 300.0f
+#define scene_scale 100.0f
 
 /***********************************************
 * Kernel state (pointers are device pointers) *
@@ -493,7 +493,15 @@ __global__ void kernShuffleData(int N, int *particleArrayIndicies, glm::vec3* po
 	}
 	shuffleArray(boid_index, particleArrayIndicies, pos, posShuffle);
 	shuffleArray(boid_index, particleArrayIndicies, vel1, vel1Shuffle);
-	shuffleArray(boid_index, particleArrayIndicies, vel2, posShuffle);
+	shuffleArray(boid_index, particleArrayIndicies, vel2, vel2Shuffle);
+}
+
+__global__ void kernShuffler(int N, int* particleArrayIndicies, glm::vec3* orig, glm::vec3* shuffle) {
+	int boid_index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (boid_index >= N) {
+		return;
+	}
+	shuffle[boid_index] = orig[particleArrayIndicies[boid_index]];
 }
 
 __global__ void kernUpdateVelNeighborSearchCoherent(
@@ -543,13 +551,11 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 				int currCell_1D = gridIndex3Dto1D(x, y, z, gridResolution);
 				int cell_startidx = gridCellStartIndices[currCell_1D];
 				int cell_endidx = gridCellEndIndices[currCell_1D];
-
 				//For each cell, read the start/end indices in the boid pointer array.
 				for (int b_idx = cell_startidx; b_idx < cell_endidx; b_idx++) {
-					int b = particleArrayIndices[b_idx];
-					if (b == boid_index) { continue; }
-					glm::vec3 boid_iPos = pos[b];
-					glm::vec3 boid_iVel = vel1[b];
+					if (b_idx == boid_index) { continue; }
+					glm::vec3 boid_iPos = pos[b_idx];
+					glm::vec3 boid_iVel = vel1[b_idx];
 					float boid_distance = glm::distance(iPos, boid_iPos);
 					//Access each boid in the cell and compute velocity change from the boids rules, if this boid is within the neighborhood distance.
 					// Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
@@ -636,22 +642,6 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
-  // TODO-2.3 - start by copying Boids::stepSimulationNaiveGrid
-  // Uniform Grid Neighbor search using Thrust sort on cell-coherent data.
-  // In Parallel:
-  // - Label each particle with its array index as well as its grid index.
-  //   Use 2x width grids
-  // - Unstable key sort using Thrust. A stable sort isn't necessary, but you
-  //   are welcome to do a performance comparison.
-  // - Naively unroll the loop for finding the start and end indices of each
-  //   cell's data pointers in the array of boid indices
-  // - BIG DIFFERENCE: use the rearranged array index buffer to reshuffle all
-  //   the particle data in the simulation array.
-  //   CONSIDER WHAT ADDITIONAL BUFFERS YOU NEED
-  // - Perform velocity updates using neighbor search
-  // - Update positions
-  // - Ping-pong buffers as needed. THIS MAY BE DIFFERENT FROM BEFORE.
-
   // - Perform velocity updates using neighbor search
   // - Update positions
   // - Ping-pong buffers as needed
@@ -680,15 +670,15 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 
 	kernShuffleData<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_particleArrayIndices, dev_pos, dev_posShuffle, dev_vel1, dev_vel1Shuffle, dev_vel2, dev_vel2Shuffle);
 	checkCUDAErrorWithLine("kernShuffleData failed!");
-	cudaDeviceSynchronize();
+
 	cudaMemcpy(dev_pos, dev_posShuffle, numObjects * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
 	cudaMemcpy(dev_vel1, dev_vel1Shuffle, numObjects * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
 	cudaMemcpy(dev_vel2, dev_vel2Shuffle, numObjects * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
 
 	//Perform Velocity Updates
-	kernUpdateVelNeighborSearchScattered<<<fullBlocksPerGrid, blockSize>>>(numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_particleArrayIndices, dev_pos, dev_vel1, dev_vel2);
-	checkCUDAErrorWithLine("kernUpdateVelNeighborSearchScattered failed!");
-	kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel2);
+	kernUpdateVelNeighborSearchCoherent<<<fullBlocksPerGrid, blockSize>>>(numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos, dev_vel1, dev_vel2);
+	checkCUDAErrorWithLine("kernUpdateVelNeighborSearchCoherent failed!");
+	kernUpdatePos <<<fullBlocksPerGrid, blockSize >>>(numObjects, dt, dev_pos, dev_vel2);
 	checkCUDAErrorWithLine("kernUpdatePos failed!");
 	//Ping Pong the velocity buffers
 	cudaMemcpy(dev_vel1, dev_vel2, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);

@@ -14,5 +14,5 @@ ________________________________________________________________________________
 | ![](images/10KBoids.gif)  | ![](images/70kboids.gif) |
 
 # Runtime Analysis
-![FPS w/ Visuals Increasing Num_Boids](images/fpsnum_boids_vis.png)
+![FPS w/ Visuals Increasing Num_Boids](images/fpsnumboids_vis.png)
 ![FPS w/ Visuals Increasing BlockSize](images/fpsblocksize_vis.png)
